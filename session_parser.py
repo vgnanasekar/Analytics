@@ -74,6 +74,7 @@ def convert_to_csv(sessions_a):
 
             outstr = [str(i) for i in outstr]
             print >> ofile, ','.join(outstr)
+#End convert_to_csv
 
 #----------------------------------------------------------------------
 #Defn   :   Calculates the time difference in milliseconds 
@@ -148,11 +149,15 @@ def parseXML(xmlFile):
             interactions_a.append(ci)
         cs.interactions = interactions_a
         sessions_a.append(cs)
-    convert_to_csv(sessions_a)
+    return sessions_a
+#End parseXML
 
 #----------------------------------------------------------------------
 #Main function
 #----------------------------------------------------------------------
 if __name__ == "__main__":
     xmlFileName = r'sample.xml'
-    parseXML(xmlFileName)
+
+    sessions_a  = parseXML(xmlFileName)
+
+    convert_to_csv(sessions_a)
