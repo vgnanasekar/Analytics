@@ -126,6 +126,7 @@ def parseXML(xmlFile):
             avg_click_time = 0
             clicks = ''
             interaction_start_time = inter.attrib['starttime']
+            click_count = 0
 
             for b in inter.clicked: 
                 if (b):
