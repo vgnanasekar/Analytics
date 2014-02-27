@@ -8,11 +8,12 @@ from datetime import datetime
 
 
 #Global storage
-Results_h        =   {}
+Results_h       =   {}
 Sessions_h      =   {}
 Interactions_h  =   {}
 session_count   =   0
 intxn_count     =   0
+result_ofile    =   'Results.csv'
  
 #Class to store session data
 class Session(object):
@@ -84,11 +85,20 @@ def timediff_ms(t1, t2):
     return ms
 
 def write_click_data():
-    ofile = open('Results.csv', 'w')
+    #Results file for writing every result date
+    ofile = open(result_ofile, 'w')
+    header = "interaction, session, ses start, topic no, product, "\
+                "goal, tasttype, subject no, subject, "\
+                "currquery start, intxn count, intxn start time, "\
+                "rank, clicked, overlap %, click start, click end, "\
+                "url, query"
+    print >> ofile, header
     for sn in range(1, session_count+1):
-        intxns = Sessions_h[sn].interaction_count
+        cs      = Sessions_h[sn]
+        intxns  = cs.interaction_count
         for itxn in range(1, intxns+1):
             inter_obj = Interactions_h[sn, itxn]
+            ci = inter_obj
             cc = inter_obj.click_count
             #Convert the click order into integers
             if (inter_obj.result_count <= 0):
@@ -103,8 +113,18 @@ def write_click_data():
 
             for rank in net_results: 
                 cc = Results_h[sn, itxn, rank]
-                outstr = cc.interaction_num, \
-                        cc.session_num, \
+                outstr = cc.session_num, \
+                        cc.interaction_num, \
+                        cs.session_start_time, \
+                        cs.topic_num, \
+                        cs.product, \
+                        cs.goal, \
+                        cs.tasktype, \
+                        cs.subject_num, \
+                        cs.subject, \
+                        cs.curr_query_stime, \
+                        cs.interaction_count, \
+                        ci.intxn_start_time, \
                         cc.rank, \
                         cc.clicked, \
                         cc.overlap_percent, \
