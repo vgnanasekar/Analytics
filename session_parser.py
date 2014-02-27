@@ -5,6 +5,14 @@
 #Imports
 from lxml import etree, objectify
 from datetime import datetime
+
+
+#Global storage
+Results_h        =   {}
+Sessions_h      =   {}
+Interactions_h  =   {}
+session_count   =   0
+intxn_count     =   0
  
 #Class to store session data
 class Session(object):
@@ -28,12 +36,39 @@ class Interaction(object):
             intxn_start_time=   0,
             avg_click_time  =   0,
             click_count     =   0,
-            clicks          =   ''
+            result_count    =   0,
+            clicks          =   '',
+            clicks_a        =   []
             ):
         self.intxn_start_time   = intxn_start_time
         self.avg_click_time     = avg_click_time
         self.click_count        = click_count
+        self.result_count       = result_count
         self.clicks             = clicks
+        self.click_a            = clicks_a 
+
+#Class to store click data
+class Result(object):
+    def __init__(self,
+            rank,
+            overlap_percent,
+            url,
+            title,
+            snippet,
+            query,
+            interaction_num,
+            session_num):
+        self.rank               = rank
+        self.overlap_percent    = overlap_percent
+        self.url                = url
+        self.title              = title
+        self.snippet            = snippet
+        self.query              = query
+        self.interaction_num    = interaction_num
+        self.session_num        = session_num
+        self.clicked            = False
+        self.start_time         = 0
+        self.end_time           = 0
 
 #----------------------------------------------------------------
 #Defn   :   Calculates the time difference in milliseconds 
@@ -47,6 +82,39 @@ def timediff_ms(t1, t2):
     tbms = tb.microsecond + ((tb.hour * 3600) + (tb.minute * 60) + tb.second) * 1000000
     ms = abs(tams - tbms)
     return ms
+
+def write_click_data():
+    ofile = open('Results.csv', 'w')
+    for sn in range(1, session_count+1):
+        intxns = Sessions_h[sn].interaction_count
+        for itxn in range(1, intxns+1):
+            inter_obj = Interactions_h[sn, itxn]
+            cc = inter_obj.click_count
+            #Convert the click order into integers
+            if (inter_obj.result_count <= 0):
+                continue
+            all_results = range(1, inter_obj.result_count+1)
+            clicked_results = []
+            if (inter_obj.clicks):
+                clicked_results = map(int, inter_obj.clicks.split('.'))
+                #unclicked_results = [x for x in all_results if x not in clicked_results]
+            unclicked_results = list(set(all_results) - set(clicked_results))
+            net_results = clicked_results + unclicked_results
+
+            for rank in net_results: 
+                cc = Results_h[sn, itxn, rank]
+                outstr = cc.interaction_num, \
+                        cc.session_num, \
+                        cc.rank, \
+                        cc.clicked, \
+                        cc.overlap_percent, \
+                        cc.start_time, \
+                        cc.end_time, \
+                        cc.url, \
+                        cc.query
+
+                outstr = [str(i) for i in outstr]
+                print >> ofile, ','.join(outstr)
 
 #-------------------------------------------------------------------
 #Defn   :   Converts Session data into csv strings and write to file
@@ -76,12 +144,31 @@ def convert_to_csv(sessions_a):
             print >> ofile, ','.join(outstr)
 #End convert_to_csv
 
+#Returns array of words from string
+def getwords(instr):
+    return [x.lower() for x in instr.split(' ')]
+
+#Find overlap percent betwen query and title + snippet combination
+def query_overlap_percent(query, title='', snippet=''):
+    qwords          = getwords(query)
+    combined_words  = getwords(title) + getwords(snippet)
+    occured_words   = list(set(qwords) & set(combined_words))
+    olap_percent = 0
+    #print combined_words
+    #print len(occured_words)
+    #print len(qwords)
+    if (len(occured_words) > 1):
+        olap_percent = float(float(len(occured_words)) / float(len(qwords))) * 100 
+    return olap_percent
+
 #----------------------------------------------------------------------
 #Defn   :   Calculates the time difference in milliseconds 
 #Input  :   Two timestamps of format %H:%M:%S.%f
 #Output :   Milliseconds as integer
 #----------------------------------------------------------------------
 def parseXML(xmlFile):
+    global session_count, intxn_count;
+    global Results_h, Sessions_h, Interactions_h;
 
     #Stores entire xml file as a string
     with open(xmlFile) as f:
@@ -94,6 +181,8 @@ def parseXML(xmlFile):
     sessions_a = []
 
     for ses in root.session:
+        session_count += 1
+        intxn_num = 0
         #Create object for Current session
         cs = Session()
         
@@ -106,7 +195,7 @@ def parseXML(xmlFile):
         subject_attr_h  = ses.topic.subject.attrib
 
         #Storing sessions data -- Use A funtcion instead
-        cs.session_no           = ses_attr_h['num']
+        cs.session_no           = int(ses_attr_h['num'])
         cs.session_start_time   = ses_attr_h['starttime']
         cs.topic_num            = topic_attr_h['num']
         cs.product              = topic_attr_h['product']
@@ -117,37 +206,77 @@ def parseXML(xmlFile):
         cs.curr_query           = ses.currentquery.query.text
         cs.curr_query_stime     = ses.currentquery.attrib['starttime']
         cs.interaction_count    = len(ses.interaction) 
+        Sessions_h[session_count] = cs
 
         #Iterating through Each Session
         for inter in ses.interaction:
-            #Object For every new interaction
-
             total_click_time = 0.0 
             avg_click_time = 0
             clicks = ''
             interaction_start_time = inter.attrib['starttime']
+            intxn_num = int(inter.attrib['num'])
+            intxn_count += 1
             click_count = 0
+            query = inter.query.text
 
+            #Result update
+            clicks_a = []
+            result_count = 0
+            for b in inter.results:
+                if (not b):
+                    continue
+                result_count = len(inter.results.result)
+                for res in b.result:
+                    click_rank      = int(res.attrib['rank'])
+                    click_url       = res.url.text
+                    click_webid     = res.clueweb09id.text
+                    click_title     = res.title.text
+                    click_snippet   = res.snippet.text
+                    click_olap_pcnt = query_overlap_percent(query, click_title, click_snippet) 
+                    result_object       = Result(click_rank,
+                                            click_olap_pcnt,
+                                            click_url,
+                                            click_title,
+                                            click_snippet,
+                                            query,
+                                            intxn_num,
+                                            cs.session_no)
+                    Results_h[cs.session_no, intxn_num, click_rank] = result_object                 
+                    clicks_a.append(result_object)
+            
+            #Interaction update
             for b in inter.clicked: 
                 if (b):
+                    click_rank = 0
                     click_count = len(b.click)
                     for click in b.click: 
-                        rank    = click.rank.text
-                        clicks += rank + '.'
+                        click_rank += 1
+                        rank    = int(click.rank.text)
+                        clicks += str(rank) + '.'
 
                         #Attribute Holder of clicks
                         click_attr_h    = click.attrib 
                         start_time      = click_attr_h['starttime'] 
                         end_time        = click_attr_h['endtime'] 
                         total_click_time += timediff_ms(end_time, start_time)
+
+                        #Update Result object
+                        Results_h[cs.session_no, intxn_num, rank].clicked = True
+                        Results_h[cs.session_no, intxn_num, rank].start_time = start_time
+                        Results_h[cs.session_no, intxn_num, rank].end_time = end_time
+
                 if (total_click_time > 0.0):
                     avg_click_time = total_click_time / click_count
             clicks = clicks.strip('.')
             ci = Interaction(interaction_start_time,
                                 avg_click_time, 
                                 click_count,
-                                clicks)
+                                result_count,
+                                clicks,
+                                clicks_a)
             interactions_a.append(ci)
+            Interactions_h[cs.session_no, intxn_num] = ci
+
         cs.interactions = interactions_a
         sessions_a.append(cs)
     return sessions_a
@@ -157,8 +286,9 @@ def parseXML(xmlFile):
 #Main function
 #----------------------------------------------------------------------
 if __name__ == "__main__":
-    xmlFileName = r'sample.xml'
+    xmlFileName = r'full_session.xml'
 
     sessions_a  = parseXML(xmlFileName)
 
     convert_to_csv(sessions_a)
+    write_click_data()
