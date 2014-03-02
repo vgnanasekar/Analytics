@@ -134,14 +134,14 @@ def write_state_data():
     global state_count, UserStates_h
     header  =   "State NO," \
                 "Start State," \
-                "Next State," \
                 "#Interactions," \
                 "State Duration," \
                 "Total Duration," \
                 "Click Count," \
                 "Result Overlap, "\
                 "Click Overlap," \
-                "first intxn clicks"
+                "first intxn clicks" \
+                "Next State," 
 
     #Results file for writing every result date
     ofile = open(state_ofile, 'w')
@@ -227,14 +227,14 @@ def write_state_data():
         ustate   =   UserStates_h[state_i]
         outstr = state_i+1, \
                 ustate.start_state, \
-                ustate.next_state, \
                 ustate.interaction_count, \
                 ustate.state_duration, \
                 ustate.total_duration, \
                 ustate.click_count, \
                 ustate.topresult_overlap, \
                 ustate.click_overlap, \
-                ustate.clicks_first_intxn
+                ustate.clicks_first_intxn, \
+                ustate.next_state
         outstr = [str(i) for i in outstr]
         print >> ofile, ','.join(outstr)
     
