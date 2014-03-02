@@ -5,15 +5,33 @@
 #Imports
 from lxml import etree, objectify
 from datetime import datetime
+from pprint import pprint
+from copy import copy
+import numpy
 
 
 #Global storage
+#------------------------------------------
+            #Hashes
 Results_h       =   {}
 Sessions_h      =   {}
 Interactions_h  =   {}
+#------------------------------------------
+
+#------------------------------------------
+            #Array
+UserStates_h    =   []
+#------------------------------------------
+
+#------------------------------------------
+            #Variables
 session_count   =   0
 intxn_count     =   0
 result_ofile    =   'Results.csv'
+state_ofile     =   'states.csv'
+state_count     =   0
+MAXTOP_OLAP     =   5
+#------------------------------------------
  
 #Class to store session data
 class Session(object):
@@ -71,6 +89,31 @@ class Result(object):
         self.start_time         = 0
         self.end_time           = 0
 
+#Class defining states
+class UserState(object):
+    def __init__(self,
+            start_state         =   1,
+            state_entry_time    =   0,
+            state_duration      =   0,
+            total_duration      =   0,
+            click_count         =   0,
+            topresult_overlap   =   0,
+            click_overlap       =   0,
+            clicks_first_intxn  =   0,
+            interaction_count   =   0,
+            next_state          =   0):
+        self.start_state        = start_state
+        self.state_entry_time   = state_entry_time
+        self.state_duration     = state_duration    
+        self.total_duration     = total_duration
+        self.click_count        = click_count   
+        self.topresult_overlap  = topresult_overlap
+        self.click_overlap      = click_overlap
+        self.clicks_first_intxn = clicks_first_intxn
+        self.interaction_count  = interaction_count
+        self.next_state         = next_state
+
+
 #----------------------------------------------------------------
 #Defn   :   Calculates the time difference in milliseconds 
 #Input  :   Two timestamps of format %H:%M:%S.%f
@@ -84,6 +127,123 @@ def timediff_ms(t1, t2):
     ms = abs(tams - tbms)
     return ms
 
+def get_state_string(state, sess):
+    print "hi"
+
+#----------------------------------------------------------------
+#Write state data to csv 
+#----------------------------------------------------------------
+def write_state_data():
+    global state_count, UserStates_h
+    header  =   "State NO," \
+                "Start State," \
+                "Next State," \
+                "#Interactions," \
+                "State Duration," \
+                "Total Duration," \
+                "Click Count," \
+                "Result Overlap, "\
+                "Click Overlap," \
+                "first intxn clicks"
+
+    #Results file for writing every result date
+    ofile = open(state_ofile, 'w')
+    print >> ofile, header
+
+    for sn in range(1, session_count+1):
+        cs      = Sessions_h[sn]
+        intxns  = cs.interaction_count
+        
+        #Start User state
+        ustate  = UserState()
+        ustate.next_state = 2
+        UserStates_h.append(ustate)
+        UserStates_h.append(copy(ustate))
+        start_time = cs.session_start_time
+        for itxn in range(1, intxns+1):
+            inter_obj   = Interactions_h[sn, itxn]
+            ci          = inter_obj
+            cc          = inter_obj.click_count
+
+            #NRQ State update
+            ustate.start_state      = ustate.next_state
+            ustate.interaction_count= itxn
+            ustate.state_entry_time = ci.intxn_start_time 
+            ustate.next_state       = 3
+            ustate.state_duration   = timediff_ms(ci.intxn_start_time, start_time)
+            start_time              = ci.intxn_start_time
+            ustate.total_duration          += ustate.state_duration
+            UserStates_h.append(copy(ustate))
+
+            #If no results continue
+            if (inter_obj.result_count <= 0):
+                continue
+
+            #Result State update
+            ustate.start_state      = ustate.next_state
+            ustate.interaction_count= itxn
+            ustate.state_entry_time = ci.intxn_start_time 
+            ustate.next_state       = -1
+            ustate.state_duration   = 0
+            olap_a = []
+            for rank in range(1, min(MAXTOP_OLAP+1, inter_obj.result_count+1)): 
+                res = Results_h[sn, itxn, rank]
+                res_olap_percent = query_overlap_percent(res.query,res.title, res.snippet)
+                olap_a.append(res_olap_percent)
+                
+            ustate.topresult_overlap = numpy.mean(olap_a)
+
+
+            #Convert the click order into integers
+            all_results = range(1, inter_obj.result_count+1)
+            clicked_results = []
+            if (inter_obj.clicks):
+                clicked_results = map(int, inter_obj.clicks.split('.'))
+            unclicked_results   = list(set(all_results) - set(clicked_results))
+            net_results         = clicked_results + unclicked_results
+
+            for rank in net_results: 
+                cc = Results_h[sn, itxn, rank]
+                if (cc.clicked):
+                    ustate.next_state        = 4
+                    UserStates_h.append(copy(ustate))
+                    ustate.start_state      = ustate.next_state
+                    ustate.next_state       = -1
+                    ustate.click_overlap    = cc.overlap_percent 
+                    ustate.click_count      += 1
+                    ustate.state_duration   = timediff_ms(cc.start_time, cc.end_time)
+                    ustate.total_duration          += ustate.state_duration
+                    start_time              = cc.end_time
+                    
+                 
+        #End User state
+        ustate.next_state       = 5
+        UserStates_h.append(copy(ustate))
+        ustate.start_state      = ustate.next_state
+        ustate.next_state       = 5
+        ustate.state_duration   = timediff_ms(cs.curr_query_stime, start_time) 
+        ustate.total_duration          += ustate.state_duration
+        UserStates_h.append(ustate)
+   
+    for state_i in range(1, len(UserStates_h)):
+        ustate   =   UserStates_h[state_i]
+        outstr = state_i, \
+                ustate.start_state, \
+                ustate.next_state, \
+                ustate.interaction_count, \
+                ustate.state_duration, \
+                ustate.total_duration, \
+                ustate.click_count, \
+                ustate.topresult_overlap, \
+                ustate.click_overlap, \
+                ustate.clicks_first_intxn
+        outstr = [str(i) for i in outstr]
+        print >> ofile, ','.join(outstr)
+    
+
+#----------------------------------------------------------------
+#Write click data to a csv
+#----------------------------------------------------------------
 def write_click_data():
     #Results file for writing every result date
     ofile = open(result_ofile, 'w')
@@ -107,7 +267,6 @@ def write_click_data():
             clicked_results = []
             if (inter_obj.clicks):
                 clicked_results = map(int, inter_obj.clicks.split('.'))
-                #unclicked_results = [x for x in all_results if x not in clicked_results]
             unclicked_results = list(set(all_results) - set(clicked_results))
             net_results = clicked_results + unclicked_results
 
@@ -174,9 +333,6 @@ def query_overlap_percent(query, title='', snippet=''):
     combined_words  = getwords(title) + getwords(snippet)
     occured_words   = list(set(qwords) & set(combined_words))
     olap_percent = 0
-    #print combined_words
-    #print len(occured_words)
-    #print len(qwords)
     if (len(occured_words) > 1):
         olap_percent = float(float(len(occured_words)) / float(len(qwords))) * 100 
     return olap_percent
@@ -312,3 +468,4 @@ if __name__ == "__main__":
 
     convert_to_csv(sessions_a)
     write_click_data()
+    write_state_data()
