@@ -460,7 +460,7 @@ def parseXML(xmlFile):
 #Main function
 #----------------------------------------------------------------------
 if __name__ == "__main__":
-    xmlFileName = r'single_session.xml'
+    xmlFileName = r'full_session.xml'
 
     sessions_a  = parseXML(xmlFileName)
 
