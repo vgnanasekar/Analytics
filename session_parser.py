@@ -127,9 +127,6 @@ def timediff_ms(t1, t2):
     ms = abs(tams - tbms)
     return ms
 
-def get_state_string(state, sess):
-    print "hi"
-
 #----------------------------------------------------------------
 #Write state data to csv 
 #----------------------------------------------------------------
@@ -157,7 +154,6 @@ def write_state_data():
         #Start User state
         ustate  = UserState()
         ustate.next_state = 2
-        UserStates_h.append(ustate)
         UserStates_h.append(copy(ustate))
         start_time = cs.session_start_time
         for itxn in range(1, intxns+1):
@@ -223,9 +219,9 @@ def write_state_data():
         ustate.next_state       = 5
         ustate.state_duration   = timediff_ms(cs.curr_query_stime, start_time) 
         ustate.total_duration          += ustate.state_duration
-        UserStates_h.append(ustate)
+        UserStates_h.append(copy(ustate))
    
-    for state_i in range(1, len(UserStates_h)):
+    for state_i in range(0, len(UserStates_h)):
         ustate   =   UserStates_h[state_i]
         outstr = state_i, \
                 ustate.start_state, \
