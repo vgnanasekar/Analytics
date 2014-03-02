@@ -162,7 +162,7 @@ def write_state_data():
             cc          = inter_obj.click_count
 
             #NRQ State update
-            ustate.start_state      = ustate.next_state
+            ustate.start_state      = 2
             ustate.interaction_count= itxn
             ustate.state_entry_time = ci.intxn_start_time 
             ustate.next_state       = 3
@@ -208,22 +208,24 @@ def write_state_data():
                     ustate.click_overlap    = cc.overlap_percent 
                     ustate.click_count      += 1
                     ustate.state_duration   = timediff_ms(cc.start_time, cc.end_time)
-                    ustate.total_duration          += ustate.state_duration
+                    ustate.total_duration   += ustate.state_duration
+                    if (itxn == 1):
+                        ustate.clicks_first_intxn += 1
                     start_time              = cc.end_time
                     
                  
-        #End User state
-        ustate.next_state       = 5
-        UserStates_h.append(copy(ustate))
-        ustate.start_state      = ustate.next_state
-        ustate.next_state       = 5
-        ustate.state_duration   = timediff_ms(cs.curr_query_stime, start_time) 
-        ustate.total_duration          += ustate.state_duration
-        UserStates_h.append(copy(ustate))
+            #End User state
+            ustate.next_state       = 5
+            UserStates_h.append(copy(ustate))
+            ustate.start_state      = ustate.next_state
+            ustate.next_state       = 5
+            ustate.state_duration   = timediff_ms(cs.curr_query_stime, start_time) 
+            ustate.total_duration   += ustate.state_duration
+            UserStates_h.append(copy(ustate))
    
     for state_i in range(0, len(UserStates_h)):
         ustate   =   UserStates_h[state_i]
-        outstr = state_i, \
+        outstr = state_i+1, \
                 ustate.start_state, \
                 ustate.next_state, \
                 ustate.interaction_count, \
@@ -458,7 +460,7 @@ def parseXML(xmlFile):
 #Main function
 #----------------------------------------------------------------------
 if __name__ == "__main__":
-    xmlFileName = r'full_session.xml'
+    xmlFileName = r'single_session.xml'
 
     sessions_a  = parseXML(xmlFileName)
 
