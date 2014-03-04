@@ -140,7 +140,7 @@ def write_state_data():
                 "Click Count," \
                 "Result Overlap, "\
                 "Click Overlap," \
-                "first intxn clicks" \
+                "first intxn clicks," \
                 "Next State," 
 
     #Results file for writing every result date
@@ -215,9 +215,9 @@ def write_state_data():
                     
                  
             #End User state
-            '''
             ustate.next_state       = 5
             UserStates_h.append(copy(ustate))
+            '''
             ustate.start_state      = ustate.next_state
             ustate.next_state       = 5
             ustate.state_duration   = timediff_ms(cs.curr_query_stime, start_time) 
