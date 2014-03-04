@@ -215,6 +215,7 @@ def write_state_data():
                     
                  
             #End User state
+            '''
             ustate.next_state       = 5
             UserStates_h.append(copy(ustate))
             ustate.start_state      = ustate.next_state
@@ -222,6 +223,7 @@ def write_state_data():
             ustate.state_duration   = timediff_ms(cs.curr_query_stime, start_time) 
             ustate.total_duration   += ustate.state_duration
             UserStates_h.append(copy(ustate))
+            '''
    
     for state_i in range(0, len(UserStates_h)):
         ustate   =   UserStates_h[state_i]
