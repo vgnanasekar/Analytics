@@ -1,4 +1,4 @@
-State NO,Start State,#Interactions,State Duration,Total Duration,Click Count,Result Overlap, Click Overlap,first intxn clicks,Next State,
+State NO,Start State,#Interactions,State Duration,Total Duration,Click Count,Result Overlap, Click Overlap,first intxn clicks,Next State
 1,1,0,0,0,0,0.0,0.0,0,2
 2,2,1,18948860,18948860,0,24.0,0.0,0,3
 3,3,1,1087432,20036292,1,24.0,60.0,1,3

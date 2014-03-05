@@ -141,7 +141,7 @@ def write_state_data():
                 "Result Overlap, "\
                 "Click Overlap," \
                 "first intxn clicks," \
-                "Next State," 
+                "Next State" 
 
     #Results file for writing every result date
     ofile = open(state_ofile, 'w')
